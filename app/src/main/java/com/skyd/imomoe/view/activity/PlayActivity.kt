@@ -7,11 +7,11 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.core.animation.addListener
-import androidx.core.view.ViewCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -97,10 +97,10 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 ablPlayActivity.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { appBarLayout, verticalOffset ->
                     when {
                         abs(verticalOffset) > ctlPlayActivity.scrimVisibleHeightTrigger -> {
-                            tvPlayActivityToolbarTitle.visible()
+                            tvPlayActivityToolbarTitle?.visible()
                         }
                         else -> {
-                            tvPlayActivityToolbarTitle.gone()
+                            tvPlayActivityToolbarTitle?.gone()
                         }
                     }
                 })
@@ -430,19 +430,33 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
 
     override fun videoPlayStatusChanged(playing: Boolean) {
         super.videoPlayStatusChanged(playing)
-        canCollapsed(!playing)
-        mBinding.tvPlayActivityToolbarTitle.text =
-            if (mBinding.avpPlayActivity.currentState == CURRENT_STATE_AUTO_COMPLETE)
-                getString(R.string.replay_video)
-            else getString(R.string.play_video_now)
+        mBinding.apply {
+            canCollapsed(!playing)
+            tvPlayActivityToolbarTitle?.text =
+                if (avpPlayActivity.currentState == CURRENT_STATE_AUTO_COMPLETE)
+                    getString(R.string.replay_video)
+                else getString(R.string.play_video_now)
+        }
+    }
+
+    override fun needShowToolbar(show: Boolean) {
+        super.needShowToolbar(show)
+        mBinding.apply {
+            if (show) {
+                avpPlayActivity.setTopContainer(null)
+                tbPlayActivity.visible()
+            } else {
+                avpPlayActivity.setTopContainer(tbPlayActivity)
+            }
+        }
     }
 
     private fun canCollapsed(enable: Boolean) {
         if (lastCanCollapsed == enable) return
         lastCanCollapsed = enable
-        mBinding.nsvPlayActivity?.let {
-            ViewCompat.setNestedScrollingEnabled(it, enable)
-        }
+//        mBinding.nsvPlayActivity?.let {
+//            ViewCompat.setNestedScrollingEnabled(it, enable)
+//        }
         mBinding.ablPlayActivity?.let {
 //            val params = it.layoutParams as CoordinatorLayout.LayoutParams
 //            if (params.behavior == null) params.behavior = AppBarLayout.Behavior()
@@ -461,7 +475,9 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 AppBarLayout.LayoutParams.SCROLL_FLAG_NO_SCROLL
             }
             mAppBarChildAt.layoutParams = mAppBarParams
-            if (!enable) it.setExpanded(true)
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!enable) it.setExpanded(true)
+            }, 500)
         }
     }
 

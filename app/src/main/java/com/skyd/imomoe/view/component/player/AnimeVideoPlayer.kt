@@ -323,8 +323,14 @@ open class AnimeVideoPlayer : StandardGSYVideoPlayer {
         }
     }
 
-    fun setTopContainer(top: ViewGroup) {
+    fun setTopContainer(top: ViewGroup?) {
         mTopContainer = top
+        mViewTopContainerShadow = if (top == null) {
+            mViewTopContainerShadow?.visible()
+            null
+        } else {
+            findViewById(R.id.view_top_container_shadow)
+        }
         restartTimerTask()
     }
 

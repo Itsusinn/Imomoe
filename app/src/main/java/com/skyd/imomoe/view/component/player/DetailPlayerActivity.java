@@ -138,6 +138,7 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
     @Override
     public void onStartPrepared(String url, Object... objects) {
         videoPlayStatusChanged(true);
+        needShowToolbar(true);
     }
 
     @Override
@@ -196,6 +197,7 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
     @Override
     public void onAutoComplete(String url, Object... objects) {
         videoPlayStatusChanged(false);
+        needShowToolbar(true);
     }
 
     @Override
@@ -238,6 +240,7 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
     @Override
     public void onPlayError(String url, Object... objects) {
         videoPlayStatusChanged(false);
+        needShowToolbar(true);
     }
 
     @Override
@@ -258,6 +261,7 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
     @Override
     public void onComplete(String url, Object... objects) {
         videoPlayStatusChanged(false);
+        needShowToolbar(true);
     }
 
     public boolean hideActionBarWhenFull() {
@@ -305,11 +309,13 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
     @Override
     public void onVideoPause() {
         videoPlayStatusChanged(false);
+        needShowToolbar(true);
     }
 
     @Override
     public void onVideoResume() {
         videoPlayStatusChanged(true);
+        needShowToolbar(false);
     }
 
     /**
@@ -318,6 +324,15 @@ public abstract class DetailPlayerActivity<T extends GSYBaseVideoPlayer, VB exte
      * @param playing false：未在播放（包括播放失败暂停等等）；true：正在播放（包括正在准备加载、缓冲等等）
      */
     protected void videoPlayStatusChanged(boolean playing) {
+
+    }
+
+    /**
+     * 是否需要必须显示工具栏
+     *
+     * @param show false：不需要显示；true：需要显示
+     */
+    protected void needShowToolbar(boolean show) {
 
     }
 }
