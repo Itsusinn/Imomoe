@@ -25,7 +25,7 @@ import com.shuyu.gsyvideoplayer.model.VideoOptionModel
 import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
-import com.shuyu.gsyvideoplayer.video.base.GSYVideoView.CURRENT_STATE_AUTO_COMPLETE
+import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
 import com.skyd.imomoe.App
 import com.skyd.imomoe.R
 import com.skyd.imomoe.bean.AnimeEpisodeDataBean
@@ -35,9 +35,7 @@ import com.skyd.imomoe.config.Const
 import com.skyd.imomoe.database.getAppDataBase
 import com.skyd.imomoe.databinding.ActivityPlayBinding
 import com.skyd.imomoe.model.DataSourceManager
-import com.skyd.imomoe.util.AnimeEpisode2ViewHolder
-import com.skyd.imomoe.util.MD5.getMD5
-import com.skyd.imomoe.util.Util
+import com.skyd.imomoe.util.*
 import com.skyd.imomoe.util.Util.dp
 import com.skyd.imomoe.util.Util.getDetailLinkByEpisodeLink
 import com.skyd.imomoe.util.Util.getResColor
@@ -47,9 +45,7 @@ import com.skyd.imomoe.util.Util.openVideoByExternalPlayer
 import com.skyd.imomoe.util.Util.setColorStatusBar
 import com.skyd.imomoe.util.Util.showToast
 import com.skyd.imomoe.util.downloadanime.AnimeDownloadHelper
-import com.skyd.imomoe.util.gone
 import com.skyd.imomoe.util.html.SnifferVideo
-import com.skyd.imomoe.util.visible
 import com.skyd.imomoe.view.adapter.AnimeDetailAdapter
 import com.skyd.imomoe.view.adapter.PlayAdapter
 import com.skyd.imomoe.view.adapter.decoration.AnimeEpisodeItemDecoration
@@ -80,8 +76,8 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
     private lateinit var viewModel: PlayViewModel
     private lateinit var adapter: PlayAdapter
     private var isFirstTime = true
-    private var danmuUrl: String = ""
-    private var danmuParamMap: HashMap<String, String> = HashMap()
+    private var danmakuUrl: String = ""
+    private var danmakuParamMap: HashMap<String, String> = HashMap()
     private var currentNightMode: Int = 0
     private var lastCanCollapsed: Boolean? = null
 
@@ -254,7 +250,7 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
 //                    danmuParamMap.putAll(paramMap)
                     runOnUiThread {
                         AnimeDownloadHelper.instance.downloadAnime(
-                            this, videoUrl, getMD5(videoUrl),
+                            this, videoUrl, videoUrl.toMD5(),
                             viewModel.playBean?.title?.title + "/" +
                                     viewModel.episodesList[it].title
                         )
@@ -263,7 +259,7 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 return@Observer
             } else {
                 AnimeDownloadHelper.instance.downloadAnime(
-                    this, url, getMD5(url),
+                    this, url, url.toMD5(),
                     viewModel.playBean?.title?.title + "/" +
                             viewModel.episodesList[it].title
                 )
@@ -313,7 +309,7 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 viewModel.insertHistoryData(detailPartUrl)
             }
             if (!viewModel.animeEpisodeDataBean.videoUrl.endsWith("\$qzz", true)) {
-                danmuUrl = ""
+                danmakuUrl = ""
                 setUp(
                     viewModel.animeEpisodeDataBean.videoUrl,
                     false, viewModel.animeEpisodeDataBean.title
@@ -324,9 +320,9 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                     partUrl,
                     detailPartUrl
                 ) { videoUrl, paramMap ->
-                    danmuParamMap.clear()
-                    danmuParamMap.putAll(paramMap)
-                    danmuUrl = paramMap[SnifferVideo.DANMU_URL] ?: ""
+                    danmakuParamMap.clear()
+                    danmakuParamMap.putAll(paramMap)
+                    danmakuUrl = paramMap[SnifferVideo.DANMU_URL] ?: ""
                     runOnUiThread {
                         setUp(videoUrl, false, viewModel.animeEpisodeDataBean.title)
                         //开始播放
@@ -344,14 +340,14 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 viewModel.insertHistoryData(detailPartUrl)
             }
             if (!url.endsWith("\$qzz", true)) {
-                danmuUrl = ""
+                danmakuUrl = ""
                 setUp(url, false, title)
             } else {
                 SnifferVideo.getQzzVideoUrl(this@PlayActivity, partUrl, detailPartUrl)
                 { videoUrl, paramMap ->
-                    danmuParamMap.clear()
-                    danmuParamMap.putAll(paramMap)
-                    danmuUrl = paramMap[SnifferVideo.DANMU_URL] ?: ""
+                    danmakuParamMap.clear()
+                    danmakuParamMap.putAll(paramMap)
+                    danmakuUrl = paramMap[SnifferVideo.DANMU_URL] ?: ""
                     setUp(videoUrl, false, title)
                     // 开始播放
                     startPlayLogic()
@@ -371,17 +367,30 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
     override fun onVideoSizeChanged() {
         mBinding.apply {
             val tag = avpPlayActivity.tag
-            if (tag is String && tag == "sw600dp-land") return
+            val state = avpPlayActivity.currentPlayer.currentState
+            if (avpPlayActivity.isIfCurrentIsFullscreen ||
+                state == GSYVideoView.CURRENT_STATE_ERROR ||
+                state == GSYVideoView.CURRENT_STATE_AUTO_COMPLETE ||
+                state == GSYVideoView.CURRENT_STATE_PREPAREING ||
+                (tag is String && tag == "sw600dp-land")
+            ) {
+                return
+            }
+            val videoHeight: Int = avpPlayActivity.currentVideoHeight
+            val videoWidth: Int = avpPlayActivity.currentVideoWidth
+            if (videoHeight <= 10 || videoWidth <= 10) return
+            val ratio = videoWidth.toDouble() / videoHeight
+            if (ratio < 0.001) return
             avpPlayActivity.measure(
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
             )
-            val videoHeight: Int = avpPlayActivity.currentVideoHeight
-            val videoWidth: Int = avpPlayActivity.currentVideoWidth
-            val ratio = videoWidth.toDouble() / videoHeight
             val playerWidth: Int = avpPlayActivity.width
             if (abs(playerWidth.toDouble() / avpPlayActivity.height - ratio) < 0.001) return
             var playerHeight = playerWidth / ratio
+            avpPlayActivity.currentPlayer.let {
+                if (it is DanmakuVideoPlayer) playerHeight += it.getDanmakuControllerHeight()
+            }
             val parentHeight = Util.getScreenHeight(true)
             if (playerHeight > parentHeight * 0.75) playerHeight = parentHeight * 0.75
             val layoutParams: ViewGroup.LayoutParams = avpPlayActivity.layoutParams
@@ -421,9 +430,9 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
         //毫秒,刚好划一屏1分35秒
         mBinding.avpPlayActivity.currentPlayer.apply {
             seekRatio = duration / 90_000f
-            if (danmuUrl.isNotBlank() && this is DanmakuVideoPlayer && !this@PlayActivity.isDestroyed) {
-                this@PlayActivity.getString(R.string.the_video_has_danmu).showToast()
-                this.setDanmaKuUrl(danmuUrl, paramMap = danmuParamMap)
+            if (danmakuUrl.isNotBlank() && this is DanmakuVideoPlayer && !this@PlayActivity.isDestroyed) {
+                this@PlayActivity.getString(R.string.the_video_has_danmaku).showToast()
+                this.setDanmakuUrl(danmakuUrl, paramMap = danmakuParamMap)
             }
         }
     }
@@ -433,8 +442,9 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
         mBinding.apply {
             canCollapsed(!playing)
             tvPlayActivityToolbarTitle?.text =
-                if (avpPlayActivity.currentState == CURRENT_STATE_AUTO_COMPLETE)
-                    getString(R.string.replay_video)
+                if (avpPlayActivity.currentPlayer.currentState ==
+                    GSYVideoView.CURRENT_STATE_AUTO_COMPLETE
+                ) getString(R.string.replay_video)
                 else getString(R.string.play_video_now)
         }
     }
