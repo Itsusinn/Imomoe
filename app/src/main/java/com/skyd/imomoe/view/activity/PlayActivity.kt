@@ -29,7 +29,6 @@ import com.skyd.imomoe.R
 import com.skyd.imomoe.config.Api
 import com.skyd.imomoe.databinding.ActivityPlayBinding
 import com.skyd.imomoe.ext.gone
-import com.skyd.imomoe.ext.smartNotifyDataSetChanged
 import com.skyd.imomoe.ext.toMD5
 import com.skyd.imomoe.ext.visible
 import com.skyd.imomoe.util.*
@@ -72,7 +71,7 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                 }, onAnimeEpisodeClickListener = { _, data, index ->
                     viewModel.playAnotherEpisode(data.actionUrl, index)
                 })
-            ), viewModel.playBeanDataList
+            )
         )
     }
     private var isFirstTime = true
@@ -187,12 +186,12 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
             }
         }
 
-        viewModel.mldPlayBean.observe(this) {
+        viewModel.mldPlayDataList.observe(this) {
             mBinding.srlPlayActivity.isRefreshing = false
 
             mBinding.tvPlayActivityTitle.text = viewModel.playBean?.title?.title
 
-            adapter.smartNotifyDataSetChanged(it.first, it.second, viewModel.playBeanDataList)
+            adapter.dataList = it ?: emptyList()
 
             if (isFirstTime) {
                 mBinding.avpPlayActivity.startPlay()
@@ -212,7 +211,6 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
         }
 
         viewModel.mldEpisodesList.observe(this) {
-            adapter.notifyDataSetChanged()
             mBinding.avpPlayActivity.setEpisodeAdapter(
                 VarietyAdapter(
                     mutableListOf(
@@ -242,8 +240,8 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                                 }
                                 true
                             })
-                    ), viewModel.episodesList.toMutableList()
-                )
+                    )
+                ).apply { dataList = viewModel.episodesList }
             )
         }
 
@@ -434,9 +432,8 @@ class PlayActivity : DetailPlayerActivity<DanmakuVideoPlayer, ActivityPlayBindin
                     getString(R.string.parsing_video).showToast()
                     viewModel.getAnimeDownloadUrl(data.actionUrl, index)
                 }
-            }, width = ViewGroup.LayoutParams.MATCH_PARENT)),
-            viewModel.episodesList as MutableList<Any>
-        )
+            }, width = ViewGroup.LayoutParams.MATCH_PARENT))
+        ).apply { dataList = viewModel.episodesList }
         val observer = Observer<Boolean> {
             adapter.notifyDataSetChanged()
         }
